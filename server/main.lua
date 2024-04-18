@@ -1,24 +1,42 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+ESX = exports['es_extended']:getSharedObject()
 
-for i=161, 242 do
-    QBCore.Functions.CreateUseableItem('chameleonpaint_'..i, function(source, item)
+for k, v in pairs(Config.ChameleonColors) do
+    ESX.RegisterUsableItem('chameleonpaint_'..k, function(source, item)
         local src = source
-        local Player = QBCore.Functions.GetPlayer(src)
-        if Player.Functions.RemoveItem('chameleonpaint_'..i, 1) then
-            TriggerClientEvent('qb-chameleonpaint:client:sprayVehicle', src, item.name, i)
+        local xPlayer = ESX.GetPlayerFromId(src)
+        if Config.JobOnly then
+            local playerjob = xPlayer.getJob().name
+            if playerjob == Config.JobName then
+                TriggerClientEvent('chameleonpaint:sprayVehicle', src, item.name, k)
+                xPlayer.removeInventoryItem('chameleonpaint_'..k, 1)
+            else
+                TriggerClientEvent('mythic_notify:client:SendAlert', source, { type = 'inform', text = 'You dont have permission to use this!'})
+            end
+        else
+            TriggerClientEvent('chameleonpaint:sprayVehicle', src, item.name, k)
+            xPlayer.removeInventoryItem('chameleonpaint_'..k, 1)
         end
     end)
 end
 
-local function IsVehicleOwned(plate)
-    local retval = false
-    local result = MySQL.Sync.fetchScalar('SELECT plate FROM player_vehicles WHERE plate = ?', {plate})
-    if result then retval = true end
-    return retval
-end
 
-RegisterNetEvent("qb-chameleonpaint:server:setMods", function(myCar)
-    if IsVehicleOwned(myCar.plate) then
-        MySQL.Async.execute('UPDATE player_vehicles SET mods = ? WHERE plate = ?', {json.encode(myCar), myCar.plate})
-    end
+RegisterServerEvent('chameleonpaint:updateVehicle')
+AddEventHandler('chameleonpaint:updateVehicle', function(vehicleProps)
+	local xPlayer = ESX.GetPlayerFromId(source)
+	MySQL.Async.fetchAll('SELECT vehicle FROM owned_vehicles WHERE plate = @plate', {
+		['@plate'] = vehicleProps.plate
+	}, function(result)
+		if result[1] then
+			local vehicle = json.decode(result[1].vehicle)
+
+			if vehicleProps.model == vehicle.model then
+				MySQL.Async.execute('UPDATE owned_vehicles SET vehicle = @vehicle WHERE plate = @plate', {
+					['@plate'] = vehicleProps.plate,
+					['@vehicle'] = json.encode(vehicleProps)
+				})
+			else
+				print(('esx_customs: %s attempted to upgrade vehicle with mismatching vehicle model!'):format(xPlayer.identifier))
+			end
+		end
+	end)
 end)

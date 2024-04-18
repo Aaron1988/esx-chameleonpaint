@@ -2,15 +2,19 @@ fx_version 'cerulean'
 game 'gta5'
 
 lua54 'yes'
-use_experimental_fxv2_oal 'yes'
+
+shared_scripts {
+    'config.lua',
+}
 
 client_scripts {
     'client/main.lua',
 }
 
 server_scripts {
+	'server/main.lua',
+    '@es_extended/locale.lua',
     '@oxmysql/lib/MySQL.lua',
-	'server/main.lua'
 }
 
 files {
@@ -20,5 +24,6 @@ files {
     "stream/vehicle_paint_ramps.ytd"
 }
 
-data_file 'CARCOLS_GEN9_FILE' 'carcols_gen9.meta'
-data_file 'CARMODCOLS_GEN9_FILE' 'carmodcols_gen9.meta'
+data_file "CARCOLS_GEN9_FILE" "data/carcols_gen9.meta"
+data_file "CARMODCOLS_GEN9_FILE" "data/carmodcols_gen9.meta"
+data_file "FIVEM_LOVES_YOU_447B37BE29496FA0" "data/carmodcols.ymt"

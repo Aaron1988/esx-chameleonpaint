@@ -1,64 +1,132 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+ESX = exports['es_extended']:getSharedObject()
+local gameBuild = GetGameBuildNumber()
 
-local function setMods()
-    local ped = PlayerPedId()
-    local pedCoords = GetEntityCoords(ped)
-    local veh = QBCore.Functions.GetClosestVehicle(pedCoords)
-    local myCar = QBCore.Functions.GetVehicleProperties(veh)
-    TriggerServerEvent('qb-chameleonpaint:server:setMods', myCar)
-end
-
-RegisterNetEvent('qb-chameleonpaint:client:sprayVehicle', function(name, index)
-    if GetInvokingResource() then return end
+RegisterNetEvent('chameleonpaint:sprayVehicle')
+AddEventHandler('chameleonpaint:sprayVehicle', function(name, index)
     local ped = PlayerPedId()
     if not IsPedInAnyVehicle(ped, false) then
         local dict1, anim1 = 'switch@franklin@lamar_tagging_wall', 'lamar_tagging_wall_loop_lamar'
-		local anim2 = 'lamar_tagging_exit_loop_lamar'
-        local can_model = `prop_cs_spray_can`
+        local anim2 = 'lamar_tagging_exit_loop_lamar'
+        local can_model = 'prop_cs_spray_can'
         RequestModel(can_model)
         while not HasModelLoaded(can_model) do
             Citizen.Wait(1)
             RequestModel(can_model)
         end
         local prop = CreateObject(can_model, GetEntityCoords(ped), true, true, true)
-		AttachEntityToEntity(prop, ped, GetPedBoneIndex(ped, 57005), 0.12, 0.0, -0.04, -70.0, 0.0, -10.0, true, true, false, false, 1, true)
-        QBCore.Functions.Progressbar("shaking", 'Shaking can', 15000, false, true, {
-            disableMovement = true,
-            disableCarMovement = true,
-            disableMouse = false,
-            disableCombat = true,
-        }, {
-            animDict = dict1,
-            anim = anim1,
-            flags = 1,
-        }, {}, {}, function()
-            ClearPedTasks(ped)
-            TriggerServerEvent("InteractSound_SV:PlayOnSource", "spraypaint", 0.3)
-            QBCore.Functions.Progressbar("painting", 'Painting', 15000, false, true, {
+        AttachEntityToEntity(prop, ped, GetPedBoneIndex(ped, 57005), 0.12, 0.0, -0.04, -70.0, 0.0, -10.0, true, true, false, false, 1, true)
+        TriggerEvent("mythic_progbar:client:progress", {
+            name = "shaking",
+            duration = 3000,
+            label = "Scuotendo bomboletta...",
+            useWhileDead = false,
+            canCancel = true,
+            controlDisables = {
                 disableMovement = true,
                 disableCarMovement = true,
                 disableMouse = false,
                 disableCombat = true,
-            }, {
+           },
+            animation = {
                 animDict = dict1,
-                anim = anim2,
-                flags = 1,
-            }, {}, {}, function()
-                local pedCoords = GetEntityCoords(ped)
-                local vehicle = QBCore.Functions.GetClosestVehicle(pedCoords)
-                SetVehicleModKit(vehicle, 0)
-                SetVehicleColours(vehicle, index, index)
-                setMods()
-                DeleteObject(prop)
+                anim = anim1,
+           },
+        }, function(status)
+            if not status then
                 ClearPedTasks(ped)
-            end, function() -- Cancel
-                DeleteObject(prop)
-                ClearPedTasks(ped)
-            end)
-        end, function() -- Cancel
-            DeleteObject(prop)
-            ClearPedTasks(ped)
+                TriggerEvent("mythic_progbar:client:progress", {
+                    name = "Painting",
+                    duration = 3000,
+                    label = "Verniciando...",
+                    useWhileDead = false,
+                    canCancel = true,
+                    controlDisables = {
+                        disableMovement = true,
+                        disableCarMovement = true,
+                        disableMouse = false,
+                        disableCombat = true,
+                    },
+                    animation = {
+                        animDict = dict1,
+                        anim = anim2,
+                    },
+                }, function(status)
+                    if not status then
+                        local pedCoords = GetEntityCoords(ped)
+                        local vehicle = ESX.Game.GetClosestVehicle(pedCoords)
+                        SetVehicleColours(vehicle, Config.ChameleonColors[index][gameBuild], Config.ChameleonColors[index][gameBuild])
+                        if Config.GarageSave then
+                            savePaint()
+                        end
+                        DeleteObject(prop)
+                        ClearPedTasks(ped)
+                    end
+                end)
+            end
         end)
     end
 end)
 
+function GetCurrentXenonColour()
+    local plyPed = PlayerPedId()
+    local plyVeh = GetVehiclePedIsIn(plyPed, false)
+    return GetVehicleHeadlightsColour(plyVeh)
+end
+
+function savePaint()
+    local plyPed = PlayerPedId()
+    local pedCoords = GetEntityCoords(plyPed)
+    local veh = ESX.Game.GetClosestVehicle(pedCoords)
+    local vehicleMods = {
+        neon = {},
+        colors = {},
+        extracolors = {},
+        dashColour = -1,
+        interColour = -1,
+        lights = {},
+        tint = GetVehicleWindowTint(veh),
+        wheeltype = GetVehicleWheelType(veh),
+        platestyle = GetVehicleNumberPlateTextIndex(veh),
+        mods = {},
+        smokecolor = {},
+        xenonColor = -1,
+        oldLiveries = 24,
+        extras = {}
+    }
+
+    vehicleMods.xenonColor = GetCurrentXenonColour(veh)
+    vehicleMods.lights[1], vehicleMods.lights[2], vehicleMods.lights[3] = GetVehicleNeonLightsColour(veh)
+    vehicleMods.colors[1], vehicleMods.colors[2] = GetVehicleColours(veh)
+    vehicleMods.extracolors[1], vehicleMods.extracolors[2] = GetVehicleExtraColours(veh)
+    vehicleMods.smokecolor[1], vehicleMods.smokecolor[2], vehicleMods.smokecolor[3] = GetVehicleTyreSmokeColor(veh)
+    vehicleMods.dashColour = GetVehicleInteriorColour(veh)
+    vehicleMods.interColour = GetVehicleDashboardColour(veh)
+    vehicleMods.oldLiveries = GetVehicleLivery(veh)
+
+    for i = 0, 3 do
+        vehicleMods.neon[i] = IsVehicleNeonLightEnabled(veh, i)
+    end
+
+    for i = 0,16 do
+        vehicleMods.mods[i] = GetVehicleMod(veh,i)
+    end
+
+    for i = 17, 22 do
+        vehicleMods.mods[i] = IsToggleModOn(veh, i)
+    end
+
+    for i = 23, 48 do
+        vehicleMods.mods[i] = GetVehicleMod(veh,i)
+    end
+
+    for i = 1, 12 do
+        local ison = IsVehicleExtraTurnedOn(veh, i)
+        if 1 == tonumber(ison) then
+            vehicleMods.extras[i] = 1
+        else
+            vehicleMods.extras[i] = 0
+        end
+    end
+    local myCar = ESX.Game.GetVehicleProperties(veh)
+    TriggerServerEvent('chameleonpaint:updateVehicle', myCar)
+end
